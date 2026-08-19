@@ -85,6 +85,7 @@ function RunRow({
         <div className="grid w-full grid-cols-3 gap-3 sm:flex sm:flex-1 sm:items-center sm:justify-end sm:gap-4 lg:gap-7">
           <Stat value={run.raw_hits} label="原始命中" className="text-text-secondary" />
           <Stat value={run.unique_targets} label="唯一目标" className="text-text-secondary" />
+          <Stat value={run.candidates} label="候选密钥" className="text-text-secondary" />
           <Stat value={run.final_verified} label="最终可用" className="text-success" />
           <Stat value={run.suspicious_count} label="可疑" className="text-info" />
           <Stat value={run.high_value_final} label="高价值" className="text-warning" />
