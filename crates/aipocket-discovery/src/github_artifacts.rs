@@ -231,6 +231,18 @@ fn provider_endpoint(text: &str, key: &str) -> &'static str {
         "https://bedrock.us-east-1.amazonaws.com"
     } else if key.starts_with("AIza") {
         "https://generativelanguage.googleapis.com"
+    } else if key.starts_with("sk-ant-") {
+        "https://api.anthropic.com/v1"
+    } else if key.starts_with("sk-proj-") || key.starts_with("sk-or-v1-") || key.starts_with("sk-svcacct-") {
+        "https://api.openai.com/v1"
+    } else if key.starts_with("gsk_") {
+        "https://api.groq.com/openai/v1"
+    } else if key.starts_with("nvapi-") {
+        "https://api.nvidia.com/v1"
+    } else if key.starts_with("r8_") {
+        "https://api.replicate.com/v1"
+    } else if key.starts_with("pplx-") {
+        "https://api.perplexity.ai"
     } else {
         let lowered = text.to_ascii_lowercase();
         if lowered.contains("windsurf_service_key") || lowered.contains("codeium_service_key") {
@@ -254,26 +266,35 @@ pub fn extract_artifact_text(
     pattern
         .find_iter(text)
         .filter(|item| seen.insert(item.as_str().to_owned()))
-        .map(|item| ExtractedArtifactSecret {
-            credential: Credential {
-                apikey: item.as_str().into(),
-                apiurl: if endpoint.is_empty() {
-                    provider_endpoint(text, item.as_str()).into()
-                } else {
+        .map(|item| {
+            // Prefer the provider API inferred from the key prefix (that is what
+            // validation probes); keep the GitHub URL as provenance in `host`.
+            let apiurl = {
+                let inferred = provider_endpoint(text, item.as_str());
+                if inferred.is_empty() {
                     endpoint.into()
+                } else {
+                    inferred.into()
+                }
+            };
+            ExtractedArtifactSecret {
+                credential: Credential {
+                    apikey: item.as_str().into(),
+                    apiurl,
+                    host: endpoint.into(),
+                    source: "github".into(),
+                    source_type: source_kind.into(),
+                    backend: "github".into(),
+                    raw_context: text.chars().take(2048).collect(),
+                    ..Default::default()
                 },
-                source: "github".into(),
-                source_type: source_kind.into(),
-                backend: "github".into(),
-                raw_context: text.chars().take(2048).collect(),
-                ..Default::default()
-            },
-            source_kind: source_kind.into(),
-            change_side: change_side.into(),
-            file_path: file_path.into(),
-            object_sha: object_sha.into(),
-            line_start: None,
-            line_end: None,
+                source_kind: source_kind.into(),
+                change_side: change_side.into(),
+                file_path: file_path.into(),
+                object_sha: object_sha.into(),
+                line_start: None,
+                line_end: None,
+            }
         })
         .collect()
 }
@@ -346,6 +367,38 @@ mod tests {
             .len(),
             1
         );
+    }
+    #[test]
+    fn artifact_apiurl_prefers_inferred_provider_endpoint() {
+        // sk-ant- keys probe Anthropic, not the GitHub provenance URL.
+        let secrets = extract_artifact_text(
+            "ANTHROPIC_API_KEY=sk-ant-abcdefghijklmnopqrstuvwxyz1234",
+            "https://github.com/owner/repo/blob/abc123/.env",
+            "code",
+            "added",
+            ".env",
+            "abc123",
+        );
+        assert_eq!(secrets.len(), 1);
+        assert_eq!(
+            secrets[0].credential.apiurl,
+            "https://api.anthropic.com/v1"
+        );
+        assert_eq!(
+            secrets[0].credential.host,
+            "https://github.com/owner/repo/blob/abc123/.env"
+        );
+        // Generic sk- keys have no known provider; fall back to provenance URL.
+        let generic = extract_artifact_text(
+            "KEY=sk-abcdefghijklmnop",
+            "https://github.com/o/r/blob/s/f",
+            "code",
+            "added",
+            "f",
+            "s",
+        );
+        assert_eq!(generic.len(), 1);
+        assert_eq!(generic[0].credential.apiurl, "https://github.com/o/r/blob/s/f");
     }
     #[test]
     fn shards_filters_and_secret_extraction_cover_boundaries() {
