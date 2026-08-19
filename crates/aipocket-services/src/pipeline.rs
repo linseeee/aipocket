@@ -74,6 +74,12 @@ const NOISE_SUBSTRINGS: &[&str] = &[
     "your_key",
     "yourapi",
     "yourkey",
+    "your-",
+    "abc123",
+    "deadbeef",
+    "a1b2c3d4",
+    "must",
+    "resolved-",
 ];
 
 fn provider_context_key(text: &str) -> Option<&str> {

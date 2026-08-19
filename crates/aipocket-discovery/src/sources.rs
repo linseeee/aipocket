@@ -517,7 +517,11 @@ impl DiscoverySource for GithubSource {
                 if let Some(work) = artifact_work(item, query, "commit_message") {
                     result.artifact_work.push(work);
                 }
-                result.host_hits.push(item.clone());
+                let mut enriched = item.clone();
+                if let Some(object) = enriched.as_object_mut() {
+                    object.insert("_source".into(), Value::String("github".into()));
+                }
+                result.host_hits.push(enriched);
             }
             result.query_usage.push(QueryUsage {
                 source: "github".into(),

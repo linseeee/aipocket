@@ -235,6 +235,10 @@ fn provider_endpoint(text: &str, key: &str) -> &'static str {
         "https://api.anthropic.com/v1"
     } else if key.starts_with("sk-proj-") || key.starts_with("sk-or-v1-") || key.starts_with("sk-svcacct-") {
         "https://api.openai.com/v1"
+    } else if key.starts_with("sk-moonshot-") || key.starts_with("sk-kimi-") {
+        "https://api.moonshot.cn/v1"
+    } else if key.starts_with("sk-zai-") {
+        "https://api.z.ai/api/paas/v4"
     } else if key.starts_with("gsk_") {
         "https://api.groq.com/openai/v1"
     } else if key.starts_with("nvapi-") {
