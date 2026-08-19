@@ -192,6 +192,57 @@ impl Repository {
             .collect())
     }
 
+    /// Candidate credentials for a run, joined with their validation outcome.
+    /// Exposed read-only (masked) so the run detail page can show what the
+    /// extractor produced even when nothing made it into `results`.
+    pub async fn run_candidates(&self, run_id: &str, masked: bool) -> Result<Vec<Value>> {
+        let pool = self.require_pool()?;
+        let rows = sqlx::query(
+            r#"SELECT c.id, c.apikey, c.apiurl, c.host, c.source, c.stage, c.prefilter_ok,
+                      v.valid AS valid, v.validation_state AS validation_state, v.error AS error
+                 FROM scan_candidates c
+                 LEFT JOIN scan_validation_results v
+                   ON v.run_id = c.run_id AND v.identity = c.identity
+                WHERE c.run_id = $1
+                ORDER BY c.id"#,
+        )
+        .bind(run_id)
+        .fetch_all(pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .filter_map(|row| {
+                let apikey: String = row.try_get("apikey").ok()?;
+                let apiurl: String = row.try_get("apiurl").ok()?;
+                let host: String = row.try_get("host").ok()?;
+                let source: String = row.try_get("source").ok()?;
+                let stage: String = row.try_get("stage").ok()?;
+                let valid: bool = row.try_get("valid").unwrap_or(false);
+                let validation_state: String =
+                    row.try_get("validation_state").unwrap_or_default();
+                let error: String = row.try_get("error").unwrap_or_default();
+                let id: i64 = row.try_get("id").ok()?;
+                let apikey = if masked { mask_apikey(&apikey) } else { apikey };
+                Some(serde_json::json!({
+                    "result_id": id,
+                    "credential": {
+                        "apikey": apikey,
+                        "apiurl": apiurl,
+                        "host": host,
+                        "source": source,
+                    },
+                    "valid": valid,
+                    "validation_state": validation_state,
+                    "status_code": null,
+                    "error": error,
+                    "suspicious": false,
+                    "stage": stage,
+                    "candidate": true,
+                }))
+            })
+            .collect())
+    }
+
     pub async fn all_records(&self, kind: &str, masked: bool) -> Result<Vec<Value>> {
         validate_kind(kind)?;
         let pool = self.require_pool()?;

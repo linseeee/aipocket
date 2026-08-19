@@ -28,6 +28,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/auth/logout", post(crate::auth::logout))
         .route("/api/runs", get(runs))
         .route("/api/runs/{id}/{kind}", get(run_results))
+        .route("/api/runs/{id}/candidates", get(run_candidates))
         .route("/api/runs/{id}/log", get(run_log))
         .route("/api/runs/{id}", axum::routing::delete(delete_run))
         .route("/api/runs/{id}/gpt-failed", get(gpt_failed))
@@ -394,6 +395,16 @@ async fn run_results(
     }
     Ok(Json(
         json!({"run_id":id,"results":s.repository.run_records(&id,&kind,true).await?}),
+    ))
+}
+async fn run_candidates(
+    _: Auth,
+    State(s): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<Json<Value>, ApiError> {
+    validate_run_id(&id)?;
+    Ok(Json(
+        json!({"run_id":id,"results":s.repository.run_candidates(&id, true).await?}),
     ))
 }
 async fn run_log(
@@ -808,7 +819,11 @@ async fn key_reveal(
     State(s): State<AppState>,
     Json(b): Json<RevealRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    let rows = s.repository.run_records(&b.run_id, &b.kind, false).await?;
+    let rows = if b.kind == "candidates" {
+        s.repository.run_candidates(&b.run_id, false).await?
+    } else {
+        s.repository.run_records(&b.run_id, &b.kind, false).await?
+    };
     for (i, row) in rows.into_iter().enumerate() {
         let key = row
             .pointer("/credential/apikey")

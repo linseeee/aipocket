@@ -23,7 +23,7 @@ type Revealed = { apikey: string; apiurl: string }
 type RowBusy = { models?: boolean; balance?: boolean; chat?: boolean }
 type BalanceInfo = { balance?: string; tier?: string }
 
-const KINDS: ResultKind[] = ["valid", "suspicious"]
+const KINDS: ResultKind[] = ["valid", "suspicious", "candidates"]
 
 function rowKeyOf(kind: ResultKind, index: number): string {
   return `${kind}:${index}`
@@ -82,6 +82,11 @@ export default function RunResultsPage() {
     queryFn: () => api.getRunResults(runId!, "suspicious"),
     enabled: Boolean(runId),
   })
+  const candidatesQuery = useQuery({
+    queryKey: ["run", runId, "candidates"],
+    queryFn: () => api.getRunCandidates(runId!),
+    enabled: Boolean(runId),
+  })
   const runsQuery = useQuery({ queryKey: ["runs"], queryFn: api.getRuns })
   const logQuery = useQuery({
     queryKey: ["run", runId, "log"],
@@ -98,10 +103,12 @@ export default function RunResultsPage() {
     },
   })
 
-  const activeQuery = kind === "valid" ? validQuery : suspiciousQuery
+  const activeQuery =
+    kind === "valid" ? validQuery : kind === "suspicious" ? suspiciousQuery : candidatesQuery
   const records = useMemo<KeyRecord[]>(() => activeQuery.data?.results ?? [], [activeQuery.data])
   const validCount = validQuery.data?.results.length ?? 0
   const suspiciousCount = suspiciousQuery.data?.results.length ?? 0
+  const candidatesCount = candidatesQuery.data?.results.length ?? 0
 
   const summary = useMemo(
     () => runsQuery.data?.days.flatMap((day) => day.runs).find((run) => run.run_id === runId),
@@ -535,9 +542,9 @@ export default function RunResultsPage() {
               onExpandedChange={handleExpandedChange}
               onReveal={handleReveal}
               onCopy={handleCopy}
-              onLoadModels={loadModels}
-              onBalance={handleBalance}
-              onChat={openChat}
+              onLoadModels={kind === "candidates" ? undefined : loadModels}
+              onBalance={kind === "candidates" ? undefined : handleBalance}
+              onChat={kind === "candidates" ? undefined : openChat}
             />
           )
         })}
@@ -565,8 +572,10 @@ export default function RunResultsPage() {
         <div className="flex flex-wrap items-center gap-2">
           {KINDS.map((tabKind) => {
             const isActive = kind === tabKind
-            const count = tabKind === "valid" ? validCount : suspiciousCount
-            const label = tabKind === "valid" ? "可用密钥" : "疑似"
+            const count =
+              tabKind === "valid" ? validCount : tabKind === "suspicious" ? suspiciousCount : candidatesCount
+            const label =
+              tabKind === "valid" ? "可用密钥" : tabKind === "suspicious" ? "疑似" : "候选密钥"
             return (
               <button
                 key={tabKind}

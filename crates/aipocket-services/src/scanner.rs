@@ -522,10 +522,26 @@ impl Scanner {
             }
             _ = analyzer.recheck(&mut outcomes) => {}
         }
+        let total_outcomes = outcomes.len();
+        let valid_outcomes = outcomes.iter().filter(|r| r.valid).count();
+        let rejected_outcomes = outcomes
+            .iter()
+            .filter(|r| r.validation_state == "rejected")
+            .count();
+        let transient_outcomes = outcomes
+            .iter()
+            .filter(|r| r.validation_state == "transient")
+            .count();
         self.repository
             .upsert_honeypot_results(&run_id, &outcomes)
             .await?;
         let (mut valid_results, mut suspicious_results) = finalize_results(outcomes);
+        events
+            .send(ScanEvent::Log(format!(
+                "验证完成 · 候选 {total_outcomes} · 可用 {valid_outcomes} · 可疑 {} · 无效 {rejected_outcomes} · 网络失败 {transient_outcomes}",
+                suspicious_results.len()
+            )))
+            .ok();
         events
             .send(ScanEvent::Phase("balance_finalize".into()))
             .ok();
@@ -610,6 +626,13 @@ impl Scanner {
         }
         progress.final_verified = valid_results.len() as u64;
         progress.suspicious = suspicious_results.len() as u64;
+        events
+            .send(ScanEvent::Log(format!(
+                "余额探测完成 · 可用 {} · 可疑 {}",
+                valid_results.len(),
+                suspicious_results.len()
+            )))
+            .ok();
         let valid = valid_results
             .iter()
             .map(as_json)

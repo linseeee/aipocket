@@ -33,7 +33,7 @@ export type GitHubPackId =
   | "longcat"
 export type ExportFormat = "json" | "csv" | "sub2api"
 export type ExportDataset = "selected" | "run" | "high-value" | "all"
-export type ResultKind = "valid" | "suspicious" | "unavailable"
+export type ResultKind = "valid" | "suspicious" | "unavailable" | "candidates"
 
 export interface LoginResponse {
   token: string
@@ -645,6 +645,8 @@ export const api = {
   getRuns: () => request<RunsResponse>("/runs"),
   getRunResults: (runId: string, kind: ResultKind) =>
     request<RunResultsResponse>(`/runs/${runId}/${kind}`),
+  getRunCandidates: (runId: string) =>
+    request<RunResultsResponse>(`/runs/${runId}/candidates`),
   deleteRun: (runId: string) =>
     request<DeleteRunResponse>(`/runs/${encodeURIComponent(runId)}`, { method: "DELETE" }),
   getRunLog: (runId: string) => request<string>(`/runs/${runId}/log`),
