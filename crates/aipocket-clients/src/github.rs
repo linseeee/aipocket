@@ -41,6 +41,7 @@ impl GithubClient {
             .header(header::AUTHORIZATION, format!("Bearer {token}"))
             .header("X-GitHub-Api-Version", &self.version)
             .header(header::ACCEPT, "application/vnd.github+json")
+            .header(header::USER_AGENT, "aipocket/0.1.0")
     }
 
     fn request(&self, path: &str) -> Result<reqwest::RequestBuilder> {
