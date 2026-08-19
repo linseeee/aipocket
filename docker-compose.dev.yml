@@ -1,5 +1,8 @@
-# Development overrides — auto-loaded by `docker compose up`.
-# Hot-reload for both backend and frontend during development.
+# Development compose file — hot-reload for backend and frontend.
+# NOT auto-loaded: only applied when explicitly passed with -f, e.g.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# (An auto-loaded docker-compose.override.yml broke prod deploys by overriding
+#  the production images' CMD with pnpm dev / local builds.)
 services:
   backend:
     build:
