@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/linseeee/aipocket-backend:latest
+    image: ghcr.nju.edu.cn/linseeee/aipocket-backend:latest
     container_name: aipocket-backend
     volumes:
       - /data/aipocket:/data/aipocket
@@ -21,7 +21,7 @@ services:
     command: ["serve", "--host", "0.0.0.0", "--port", "8000"]
 
   frontend:
-    image: ghcr.io/linseeee/aipocket-frontend:latest
+    image: ghcr.nju.edu.cn/linseeee/aipocket-frontend:latest
     container_name: aipocket-frontend
     ports:
       - "3080:80"
@@ -32,7 +32,7 @@ services:
   # Optional periodic scanner. Enable with:
   #   docker compose --profile watch up -d backend-watch
   backend-watch:
-    image: ghcr.io/linseeee/aipocket-backend:latest
+    image: ghcr.nju.edu.cn/linseeee/aipocket-backend:latest
     container_name: aipocket-watch
     profiles: ["watch"]
     volumes:
