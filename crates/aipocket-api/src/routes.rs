@@ -105,6 +105,21 @@ async fn delete_run(
     State(s): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<Value>, ApiError> {
+    // Refuse to delete the run a scan is actively writing to: removing the row
+    // cascades into its child tables while the task keeps INSERTing, corrupting
+    // the run and leaving the UI stuck on a phantom run.
+    let status = s.scan_manager.status().await;
+    if matches!(
+        status.state,
+        aipocket_core::ScanState::Running | aipocket_core::ScanState::Stopping
+    ) && status.run_id.as_deref() == Some(id.as_str())
+    {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "conflict",
+            "cannot delete the run of an active scan; stop it first",
+        ));
+    }
     let deleted = s.repository.delete_run(&id).await?;
     let disk = s.settings.read().await.results_path().join(&id);
     let disk_removed = if disk.exists() {

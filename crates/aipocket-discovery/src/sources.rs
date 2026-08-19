@@ -416,7 +416,8 @@ impl DiscoverySource for GithubSource {
             .filter(|query| selected.is_none_or(|values| values.contains(query)))
             .collect::<Vec<_>>();
         let code_limit = budgets.github_code.unwrap_or(queries.len());
-        for query in queries.iter().copied().take(code_limit) {
+        let query_total = queries.len();
+        for (query_index, query) in queries.iter().copied().take(code_limit).enumerate() {
             let shard_id = checkpoint_shard_id(&self.pack_id, query, "code_snapshot");
             let start_page = budgets
                 .checkpoints
@@ -425,6 +426,7 @@ impl DiscoverySource for GithubSource {
                 .and_then(|checkpoint| checkpoint.cursor_state.get("next_page"))
                 .and_then(Value::as_u64)
                 .unwrap_or(1) as usize;
+            report_progress(budgets, "github", query_index, query_total, 0, &result);
             for page in start_page..=5 {
                 let value = match self.client.search_code(query, page, self.per_page).await {
                     Ok(value) => value,
@@ -454,6 +456,7 @@ impl DiscoverySource for GithubSource {
                     lane: "code_snapshot".into(),
                     ..Default::default()
                 });
+                report_progress(budgets, "github", query_index, query_total, page as u32, &result);
                 if self.per_page <= 1 {
                     break;
                 }
@@ -469,7 +472,8 @@ impl DiscoverySource for GithubSource {
             ));
         }
         let commit_limit = budgets.github_commit.unwrap_or(0).min(queries.len());
-        for query in queries.iter().copied().take(commit_limit) {
+        for (query_index, query) in queries.iter().copied().take(commit_limit).enumerate() {
+            report_progress(budgets, "github", query_index, query_total, 0, &result);
             let value = match self.client.search_commits(query, 1, self.per_page).await {
                 Ok(value) => value,
                 Err(error) => {
@@ -530,6 +534,7 @@ impl DiscoverySource for GithubSource {
                 "commit_message",
                 serde_json::json!({"next_page": 1}),
             ));
+            report_progress(budgets, "github", query_index, query_total, 1, &result);
         }
         result.credential_observation_count = Some(result.credential_observations.len() as u64);
         result.host_hit_count = Some(result.host_hits.len() as u64);
