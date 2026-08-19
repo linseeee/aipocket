@@ -42,10 +42,10 @@ pnpm install
 pnpm dev                             # Vite dev server on :5173
 pnpm build && pnpm preview           # production build
 
-# Docker (dev — auto-merges override for hot-reload)
-docker compose up
+# Docker (dev — explicit dev compose file, not auto-loaded)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
-# Docker (prod — skip override)
+# Docker (prod — compose file only; no dev overrides)
 docker compose -f docker-compose.yml up -d
 ```
 
